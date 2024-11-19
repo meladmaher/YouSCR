@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Screenshot Tool</title>
+</head>
+<body>
+    <h1>YouTube Screenshot Tool</h1>
+    <form id="screenshotForm">
+        <label for="videoURL">YouTube Video URL:</label>
+        <input type="text" id="videoURL" placeholder="Enter YouTube URL" required>
+        <br>
+        <label for="minutes">Minutes:</label>
+        <input type="number" id="minutes" placeholder="Enter minutes" min="0" required>
+        <label for="seconds">Seconds:</label>
+        <input type="number" id="seconds" placeholder="Enter seconds" min="0" max="59" required>
+        <br>
+        <button type="submit">Prepare Video</button>
+    </form>
+    <div id="error" style="color: red; margin-top: 10px;"></div>
+    <div id="player"></div>
+    <canvas id="screenshotCanvas" style="border: 1px solid black; display: none;"></canvas>
+    <br>
+    <button id="saveButton" style="display: none;">Save Screenshot</button>
+
+    <script>
+        let player;
+
+        // Load YouTube Iframe API
+        function loadYouTubeAPI() {
+            const tag = document.createElement('script');
+            tag.src = "https://www.youtube.com/iframe_api";
+            document.head.appendChild(tag);
+        }
+
+        // Initialize the player
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('player', {
+                height: '390',
+                width: '640',
+                videoId: '', // Placeholder
+                playerVars: {
+                    autoplay: 0, // Prevent auto-play
+                    controls: 1, // Show controls
+                    modestbranding: 1, // Minimal branding
+                    rel: 0, // No related videos
+                    showinfo: 0 // Hide video info
+                },
+                events: {
+                    'onReady': onPlayerReady,
+                }
+            });
+        }
+
+        function onPlayerReady() {
+            console.log("Player ready");
+        }
+
+        document.getElementById('screenshotForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const videoURL = document.getElementById('videoURL').value;
+            const minutes = parseInt(document.getElementById('minutes').value) || 0;
+            const seconds = parseInt(document.getElementById('seconds').value) || 0;
+            const totalSeconds = minutes * 60 + seconds;
+            const videoID = videoURL.split("v=")[1]?.split("&")[0];
+            const errorDiv = document.getElementById('error');
+
+            // Clear previous error messages
+            errorDiv.textContent = "";
+
+            if (!videoID) {
+                errorDiv.textContent = "Invalid YouTube URL. Please check and try again.";
+                return;
+            }
+
+            // Load the video in the player
+            player.loadVideoById({
+                videoId: videoID,
+                startSeconds: totalSeconds,
+                suggestedQuality: 'hd720' // Force 720p quality
+            });
+
+            // Pause video immediately after loading
+            setTimeout(() => {
+                player.pauseVideo();
+
+                // Attempt to capture screenshot
+                const iframe = document.querySelector('iframe');
+                const canvas = document.getElementById('screenshotCanvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = iframe.offsetWidth;
+                canvas.height = iframe.offsetHeight;
+
+                try {
+                    ctx.drawImage(iframe, 0, 0, canvas.width, canvas.height);
+                    canvas.style.display = "block";
+                    document.getElementById('saveButton').style.display = "block";
+                } catch (error) {
+                    errorDiv.textContent = "Screenshot could not be captured due to browser security policies.";
+                }
+            }, 2000);
+        });
+
+        // Add save functionality
+        document.getElementById('saveButton').addEventListener('click', () => {
+            const canvas = document.getElementById('screenshotCanvas');
+            const link = document.createElement('a');
+            link.download = 'screenshot.png';
+            link.href = canvas.toDataURL(); // Convert canvas to data URL
+            link.click(); // Trigger download
+        });
+
+        // Load the API
+        loadYouTubeAPI();
+    </script>
+</body>
+</html>
